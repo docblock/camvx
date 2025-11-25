@@ -1,7 +1,0 @@
-Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/home/andreas/esp-tools/tools/python_env/idf5.5_py3.12_env/bin/python -DESP_PLATFORM=1 -DSDKCONFIG='/home/andreas/development/idfsource/camvx/sdkconfig' -DCCACHE_ENABLE=0 /home/andreas/development/idfsource/camvx
-warning: the default selection EXAMPLE_MIPI_DSI_DISP_HRES_1024 (undefined) of <choice EXAMPLE_MIPI_DSI_DISP_HRES> (defined at /home/andreas/development/idfsource/camvx/components/dsi_init/Kconfig.projbuild:17) is not contained in the choice
-warning: the choice symbol EXAMPLE_MIPI_DSI_DISP_VRES_1280 (defined at /home/andreas/development/idfsource/camvx/components/dsi_init/Kconfig.projbuild:26, /home/andreas/development/idfsource/camvx/components/dsi_init/Kconfig.projbuild:44) is defined with a prompt outside the choice
-warning: the choice symbol EXAMPLE_MIPI_DSI_DISP_VRES_1280 (defined at /home/andreas/development/idfsource/camvx/components/dsi_init/Kconfig.projbuild:26, /home/andreas/development/idfsource/camvx/components/dsi_init/Kconfig.projbuild:44) is defined with a prompt outside the choice
-info: INFO: Symbol EXAMPLE_MIPI_DSI_DISP_VRES_1280 defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
-    /home/andreas/development/idfsource/camvx/components/dsi_init/Kconfig.projbuild:26
-    /home/andreas/development/idfsource/camvx/components/dsi_init/Kconfig.projbuild:44
