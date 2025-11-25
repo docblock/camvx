@@ -69,6 +69,9 @@ $<TARGET_FILE:__idf_nvs_flash>
 $<TARGET_FILE:idf::mbedtls>
 $<TARGET_FILE:__idf_esp_wifi>
 $<TARGET_FILE:__idf_esp_netif>
+$<TARGET_FILE:__idf_espressif__esp_wifi_remote>
+$<TARGET_FILE:__idf_espressif__esp_hosted>
+$<TARGET_FILE:__idf_console>
 $<TARGET_FILE:__idf_esp_https_ota>
 $<TARGET_FILE:__idf_esp_security>
 $<TARGET_FILE:__idf_pthread>
@@ -147,7 +150,6 @@ $<TARGET_FILE:idf::esp_lcd>
 $<TARGET_FILE:idf::protobuf-c>
 $<TARGET_FILE:idf::protocomm>
 $<TARGET_FILE:__idf_protobuf-c>
-$<TARGET_FILE:__idf_console>
 $<TARGET_FILE:idf::esp_local_ctrl>
 $<TARGET_FILE:__idf_protocomm>
 $<TARGET_FILE:__idf_esp_https_server>
@@ -174,6 +176,12 @@ $<TARGET_FILE:idf::espressif__esp_cam_sensor>
 $<TARGET_FILE:__idf_espressif__esp_sccb_intf>
 $<TARGET_FILE:idf::sensor_init>
 $<TARGET_FILE:__idf_espressif__esp_cam_sensor>
+$<TARGET_FILE:idf::espressif__esp_hosted>
+$<TARGET_FILE:idf::espressif__esp_serial_slave_link>
+$<TARGET_FILE:idf::espressif__eppp_link>
+$<TARGET_FILE:__idf_esp_eth>
+$<TARGET_FILE:__idf_espressif__esp_serial_slave_link>
+$<TARGET_FILE:idf::espressif__esp_wifi_remote>
 $<TARGET_FILE:idf::main>
 $<TARGET_FILE:__idf_esp_driver_cam>
 $<TARGET_FILE:__idf_dsi_init>

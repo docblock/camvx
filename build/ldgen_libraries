@@ -69,6 +69,9 @@
 /home/andreas/development/idfsource/camvx/build/esp-idf/mbedtls/libmbedtls.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/esp_wifi/libesp_wifi.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/esp_netif/libesp_netif.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/espressif__esp_wifi_remote/libespressif__esp_wifi_remote.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/espressif__esp_hosted/libespressif__esp_hosted.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/console/libconsole.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/esp_https_ota/libesp_https_ota.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/esp_security/libesp_security.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/pthread/libpthread.a
@@ -147,7 +150,6 @@
 /home/andreas/development/idfsource/camvx/build/esp-idf/protobuf-c/libprotobuf-c.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/protocomm/libprotocomm.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/protobuf-c/libprotobuf-c.a
-/home/andreas/development/idfsource/camvx/build/esp-idf/console/libconsole.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/esp_local_ctrl/libesp_local_ctrl.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/protocomm/libprotocomm.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/esp_https_server/libesp_https_server.a
@@ -174,6 +176,12 @@
 /home/andreas/development/idfsource/camvx/build/esp-idf/espressif__esp_sccb_intf/libespressif__esp_sccb_intf.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/sensor_init/libsensor_init.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/espressif__esp_cam_sensor/libespressif__esp_cam_sensor.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/espressif__esp_hosted/libespressif__esp_hosted.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/espressif__esp_serial_slave_link/libespressif__esp_serial_slave_link.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/espressif__eppp_link/libespressif__eppp_link.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/esp_eth/libesp_eth.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/espressif__esp_serial_slave_link/libespressif__esp_serial_slave_link.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/espressif__esp_wifi_remote/libespressif__esp_wifi_remote.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/main/libmain.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/esp_driver_cam/libesp_driver_cam.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/dsi_init/libdsi_init.a
