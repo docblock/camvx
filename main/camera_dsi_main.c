@@ -32,6 +32,8 @@
 #include "lwip/sys.h"
 #include "webserver.h"  // NEU
 
+#include "main_functions.h"
+
 static const char *TAG = "cam_csi";
 
 /* The examples use WiFi configuration that you can set via project configuration menu
@@ -276,6 +278,9 @@ void frame_processing_task(void *arg) {
 
 void app_main(void)
 {
+    //Initialize Tensorflow Lite Micro
+    setuptflite();
+    
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {

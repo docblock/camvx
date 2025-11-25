@@ -7,3 +7,4 @@ dependencies:
     path: ../components/sensor_init
   espressif/esp_wifi_remote: '*'
   espressif/esp_hosted: '*'
+  espressif/esp-tflite-micro: '*'
