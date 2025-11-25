@@ -178,3 +178,4 @@ $<TARGET_FILE:idf::main>
 $<TARGET_FILE:__idf_esp_driver_cam>
 $<TARGET_FILE:__idf_dsi_init>
 $<TARGET_FILE:__idf_sensor_init>
+$<TARGET_FILE:__idf_esp_driver_jpeg>

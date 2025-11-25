@@ -178,3 +178,4 @@
 /home/andreas/development/idfsource/camvx/build/esp-idf/esp_driver_cam/libesp_driver_cam.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/dsi_init/libdsi_init.a
 /home/andreas/development/idfsource/camvx/build/esp-idf/sensor_init/libsensor_init.a
+/home/andreas/development/idfsource/camvx/build/esp-idf/esp_driver_jpeg/libesp_driver_jpeg.a
