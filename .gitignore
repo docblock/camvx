@@ -1,0 +1,17 @@
+# Build-Artefakte
+build/
+*.o
+*.a
+
+# ESP-IDF spezifisch
+sdkconfig
+sdkconfig.old
+dependencies.lock
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+*.pyc
+__pycache__/
