@@ -30,6 +30,7 @@
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "webserver.h"  // NEU
 
 static const char *TAG = "cam_csi";
 
@@ -242,8 +243,8 @@ void frame_processing_task(void *arg) {
             // 2. Bild-Parameter setzen
             jpeg_encode_cfg_t enc_config = {
                 .src_type = JPEG_ENCODE_IN_FORMAT_RGB565,
-                .sub_sample = JPEG_DOWN_SAMPLING_YUV422, // Standard für JPEGs
-                .image_quality = 80, // Qualität 0-100
+                .sub_sample = JPEG_DOWN_SAMPLING_YUV422,
+                .image_quality = 80,
                 .width = CONFIG_EXAMPLE_MIPI_CSI_DISP_HRES,
                 .height = CONFIG_EXAMPLE_MIPI_DSI_DISP_VRES,
             };
@@ -263,8 +264,8 @@ void frame_processing_task(void *arg) {
                 ESP_LOGI(TAG, "JPEG Encoded! Size: %u bytes (Ratio: 1:%.1f)", 
                          jpeg_size, (float)evt.len / jpeg_size);
                 
-                // HIER: jpeg_buffer enthält jetzt das fertige Bild.
-                // Sie könnten es jetzt senden oder speichern.
+                // NEU: JPEG an Webserver übergeben
+                webserver_update_jpeg(jpeg_buffer, jpeg_size);
                 
             } else {
                 ESP_LOGE(TAG, "JPEG Encode failed: %s", esp_err_to_name(ret));
@@ -291,6 +292,11 @@ void app_main(void)
 
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
+
+    // NEU: Webserver starten (nach WiFi-Verbindung!)
+    start_webserver();
+
+    vTaskDelay(pdMS_TO_TICKS(10000));
 
     ret = ESP_FAIL;
 

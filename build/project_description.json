@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "camvx",
-    "project_version":    "b3c6f37-dirty",
+    "project_version":    "8f47287-dirty",
     "project_path":       "/home/andreas/development/idfsource/camvx",
     "idf_path":           "/home/andreas/esp-idfs/v5.5.1/esp-idf",
     "build_dir":          "/home/andreas/development/idfsource/camvx/build",
@@ -1385,12 +1385,12 @@
             "dir": "/home/andreas/development/idfsource/camvx/main",
             "type": "LIBRARY",
             "lib": "__idf_main",
-            "reqs": [ "esp_mm", "esp_driver_isp", "esp_driver_cam", "esp_driver_i2c", "dsi_init", "sensor_init", "esp_driver_jpeg", "esp_wifi", "nvs_flash" ],
+            "reqs": [ "esp_mm", "esp_driver_isp", "esp_driver_cam", "esp_driver_i2c", "dsi_init", "sensor_init", "esp_driver_jpeg", "esp_wifi", "esp_netif", "nvs_flash", "esp_event", "esp_http_server" ],
             "priv_reqs": [ "dsi_init", "espressif__esp_hosted", "espressif__esp_wifi_remote", "sensor_init" ],
             "managed_reqs": [],
             "managed_priv_reqs": [ "dsi_init", "espressif__esp_hosted", "espressif__esp_wifi_remote", "sensor_init" ],
             "file": "/home/andreas/development/idfsource/camvx/build/esp-idf/main/libmain.a",
-            "sources": [ "/home/andreas/development/idfsource/camvx/main/camera_dsi_main.c" ],
+            "sources": [ "/home/andreas/development/idfsource/camvx/main/camera_dsi_main.c", "/home/andreas/development/idfsource/camvx/main/webserver.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {
@@ -3087,7 +3087,7 @@
             "prefix": "idf",
             "dir": "/home/andreas/development/idfsource/camvx/main",
             "lib": "__idf_main",
-            "reqs": [ "esp_mm", "esp_driver_isp", "esp_driver_cam", "esp_driver_i2c", "dsi_init", "sensor_init", "esp_driver_jpeg", "esp_wifi", "nvs_flash" ],
+            "reqs": [ "esp_mm", "esp_driver_isp", "esp_driver_cam", "esp_driver_i2c", "dsi_init", "sensor_init", "esp_driver_jpeg", "esp_wifi", "esp_netif", "nvs_flash", "esp_event", "esp_http_server" ],
             "priv_reqs": [ "dsi_init", "espressif__esp_hosted", "espressif__esp_wifi_remote", "sensor_init" ],
             "managed_reqs": [],
             "managed_priv_reqs": [ "dsi_init", "espressif__esp_hosted", "espressif__esp_wifi_remote", "sensor_init" ],
