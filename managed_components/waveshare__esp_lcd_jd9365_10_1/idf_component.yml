@@ -1,0 +1,16 @@
+dependencies:
+  cmake_utilities:
+    version: 0.*
+  idf:
+    version: '>=5.3'
+description: ESP LCD FOR Waveshare 10.1inch DISPLAY JD9365
+issues: https://github.com/WaveshareCloud/ESP32-P4_components/issues
+license: MIT
+repository: git://github.com/WaveshareCloud/Waveshare-ESP32-components.git
+repository_info:
+  commit_sha: 181179a2d2bfce7eeebdaf25fd4e499862bb2dd0
+  path: esp_lcd_jd9365_10_1
+targets:
+- esp32p4
+url: https://github.com/WaveshareCloud/ESP32-P4_components/tree/master/esp_lcd_jd9365_10_1
+version: 0.0.4
