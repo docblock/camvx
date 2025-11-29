@@ -13,7 +13,6 @@ idf_component_register(
         esp_driver_isp
         esp_driver_cam
         esp_driver_i2c
-        dsi_init
         sensor_init
         esp_driver_jpeg
         esp_wifi
@@ -21,4 +20,5 @@ idf_component_register(
         nvs_flash
         esp_event
         esp_http_server
+        esp_driver_ppa
 )

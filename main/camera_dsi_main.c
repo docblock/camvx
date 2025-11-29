@@ -16,6 +16,7 @@
 #include "driver/i2c_master.h"
 #include "driver/isp.h"
 #include "driver/jpeg_encode.h" // WICHTIG: JPEG Header
+#include "driver/ppa.h"         // WICHTIG: PPA Header
 #include "esp_cam_ctlr_csi.h"
 #include "esp_cam_ctlr.h"
 #include "example_sensor_init.h"
@@ -35,6 +36,11 @@
 #include "main_functions.h"
 
 static const char *TAG = "cam_csi";
+
+//Achtung das Konfigsystem ist etwas seltsam, da es in Kconfig.projbuild definiert wird
+//und dann automatisch in sdkconfig.h mit dem Zusatz CONFIG_ eingebunden wird
+#define EXAMPLE_MIPI_CSI_VRES      CONFIG_EXAMPLE_MIPI_CSI_VRES
+#define EXAMPLE_MIPI_CSI_HRES      CONFIG_EXAMPLE_MIPI_CSI_HRES
 
 /* The examples use WiFi configuration that you can set via project configuration menu
 
@@ -174,8 +180,12 @@ void wifi_init_sta(void)
 
 #define NUM_FRAME_BUFFERS 2
 
+// Skaliertes Bild
+#define SCALED_WIDTH  400
+#define SCALED_HEIGHT 400
+
 // JPEG Buffer Größe (Schätzung: 1/5 von RGB565 sollte reichen, aber sicherheitshalber großzügig)
-#define JPEG_BUFFER_SIZE (CONFIG_EXAMPLE_MIPI_CSI_DISP_HRES * CONFIG_EXAMPLE_MIPI_DSI_DISP_VRES / 5)
+#define JPEG_BUFFER_SIZE (SCALED_WIDTH * SCALED_HEIGHT / 3)
 
 typedef struct {
     void *frame_buffers[NUM_FRAME_BUFFERS];
@@ -183,9 +193,17 @@ typedef struct {
     int current_buffer_idx;
 } camera_context_t;
 
+
+
 static camera_context_t cam_ctx = {0};
 static QueueHandle_t xFrameQueue = NULL;
 static jpeg_encoder_handle_t jpeg_handle = NULL; // Handle für den Encoder
+static ppa_client_handle_t ppa_srm_handle = NULL;  // NEU: PPA Handle
+static uint8_t *scaled_buffer = NULL;              // NEU: Buffer für skaliertes Bild
+// WICHTIG: volatile hinzufügen!
+static volatile bool ready_to_process = true;
+static volatile bool need_new_buffer = false;
+
 
 typedef struct {
     void *buffer;
@@ -196,21 +214,90 @@ typedef struct {
 // --- Callbacks bleiben gleich ---
 static bool s_camera_get_finished_trans(esp_cam_ctlr_handle_t handle, esp_cam_ctlr_trans_t *trans, void *user_data)
 {
+    //Diese Funktion wird vom Kamera Treiber im ISR Kontext aufgerufen, wenn ein Frame fertig aufgenommen wurde
+    //Erst wenn diese Funktion zurückkehrt, wird s_camera_get_new_vb aufgerufen, um den nächsten Buffer zuzuweisen
+
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     frame_event_t evt;
     evt.buffer = trans->buffer;
     evt.len = trans->buflen;
-    xQueueSendFromISR(xFrameQueue, &evt, &xHigherPriorityTaskWoken);
-    return xHigherPriorityTaskWoken == pdTRUE;
+    //ready_to_process wird im frame_processing_task zurückgesetzt, wenn der Frame verarbeitet wurde
+    if (ready_to_process){
+        need_new_buffer = true;
+        ready_to_process = false;
+        xQueueSendFromISR(xFrameQueue, &evt, &xHigherPriorityTaskWoken);
+        return xHigherPriorityTaskWoken == pdTRUE;
+    }
+    need_new_buffer = false;
+    return false;
 }
 
 static bool s_camera_get_new_vb(esp_cam_ctlr_handle_t handle, esp_cam_ctlr_trans_t *trans, void *user_data)
 {
+    // Wenn das letzte Bild fertig ist, wechseln wir zum nächsten Buffer
+    // Wenn das letzte Bild noch nicht fertig ist, wird der gleiche Buffer wiederverwendet
+    // Damit werden alle Bilder verworfen, die aufgenommen wurden, während der Prozessor noch beschäftigt war.
+
     camera_context_t *ctx = (camera_context_t *)user_data;
-    ctx->current_buffer_idx = (ctx->current_buffer_idx + 1) % NUM_FRAME_BUFFERS;
+    if(need_new_buffer)
+        ctx->current_buffer_idx = (ctx->current_buffer_idx + 1) % NUM_FRAME_BUFFERS;
     trans->buffer = ctx->frame_buffers[ctx->current_buffer_idx];
     trans->buflen = ctx->buffer_size;
     return false;
+}
+
+// NEU: PPA Skalierungsfunktion mit Spiegelung
+static esp_err_t scale_image_with_ppa(const uint8_t *src, uint8_t *dst)
+{
+    // 1. Cache Sync für Input
+    size_t src_size = EXAMPLE_MIPI_CSI_HRES * EXAMPLE_MIPI_CSI_VRES * 2;
+    esp_cache_msync((void*)src, src_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M);
+
+    // Dynamische Berechnung des Skalierungsfaktors
+    float scale_x = (float)SCALED_WIDTH / (float)EXAMPLE_MIPI_CSI_HRES;
+    float scale_y = (float)SCALED_HEIGHT / (float)EXAMPLE_MIPI_CSI_VRES;
+
+    ppa_srm_oper_config_t srm_config = {
+        .in = {
+            .buffer = src,
+            .pic_w = EXAMPLE_MIPI_CSI_HRES,
+            .pic_h = EXAMPLE_MIPI_CSI_VRES,
+            .block_w = EXAMPLE_MIPI_CSI_HRES,
+            .block_h = EXAMPLE_MIPI_CSI_VRES,
+            .block_offset_x = 0,
+            .block_offset_y = 0,
+            .srm_cm = PPA_SRM_COLOR_MODE_RGB565,
+        },
+        .out = {
+            .buffer = dst,
+            .buffer_size = SCALED_WIDTH * SCALED_HEIGHT * 2,
+            .pic_w = SCALED_WIDTH,
+            .pic_h = SCALED_HEIGHT,
+            .block_offset_x = 0,
+            .block_offset_y = 0,
+            .srm_cm = PPA_SRM_COLOR_MODE_RGB565,
+        },
+        .rotation_angle = PPA_SRM_ROTATION_ANGLE_0,
+        .scale_x = scale_x,
+        .scale_y = scale_y, 
+        .rgb_swap = 0,
+        .byte_swap = 0,
+        .mode = PPA_TRANS_MODE_BLOCKING,
+        // NEU: Spiegelung aktivieren
+        .mirror_x = true,   // Horizontal spiegeln (links <-> rechts)
+        .mirror_y = false,  // Vertikal spiegeln (oben <-> unten) - falls nötig
+    };
+
+    esp_err_t ret = ppa_do_scale_rotate_mirror(ppa_srm_handle, &srm_config);
+    
+    if (ret == ESP_OK) {
+        size_t dst_size = SCALED_WIDTH * SCALED_HEIGHT * 2;
+        esp_cache_msync((void*)dst, dst_size, ESP_CACHE_MSYNC_FLAG_DIR_M2C);
+    } else {
+        ESP_LOGE(TAG, "PPA scaling failed: %s", esp_err_to_name(ret));
+    }
+    
+    return ret;
 }
 
 // --- Processing Task mit JPEG Encoding ---
@@ -228,6 +315,17 @@ void frame_processing_task(void *arg) {
         if (xQueueReceive(xFrameQueue, &evt, portMAX_DELAY) == pdTRUE) {
             
             ESP_LOGI(TAG, "Encoding Frame at %p...", evt.buffer);
+
+            // NEU: Bild skalieren
+            // NEU: Bild mit PPA skalieren (800x800 -> 400x400)
+            esp_err_t scale_ret = scale_image_with_ppa((const uint8_t *)evt.buffer, scaled_buffer);
+            if (scale_ret != ESP_OK) {
+                ESP_LOGE(TAG, "Scaling failed, skipping frame");
+                ready_to_process = true;
+                continue;
+            }
+            ESP_LOGI(TAG, "Image scaled from %dx%d to %dx%d", EXAMPLE_MIPI_CSI_HRES, EXAMPLE_MIPI_CSI_VRES, SCALED_WIDTH, SCALED_HEIGHT);
+
             
             // 1. Config für dieses Bild
             jpeg_encode_engine_cfg_t encode_eng_cfg = {
@@ -247,8 +345,8 @@ void frame_processing_task(void *arg) {
                 .src_type = JPEG_ENCODE_IN_FORMAT_RGB565,
                 .sub_sample = JPEG_DOWN_SAMPLING_YUV422,
                 .image_quality = 80,
-                .width = CONFIG_EXAMPLE_MIPI_CSI_DISP_HRES,
-                .height = CONFIG_EXAMPLE_MIPI_DSI_DISP_VRES,
+                .width = SCALED_WIDTH,
+                .height = SCALED_HEIGHT,
             };
 
             // 3. Encoding durchführen (One-Shot Modus)
@@ -257,8 +355,11 @@ void frame_processing_task(void *arg) {
             // ÄNDERUNG: uint32_t statt size_t verwenden
             uint32_t jpeg_size = 0; 
             
+            // KORRIGIERT: scaled_buffer statt evt.buffer verwenden!
+            size_t scaled_size = SCALED_WIDTH * SCALED_HEIGHT * 2;  // RGB565 = 2 Bytes pro Pixel
+            
             esp_err_t ret = jpeg_encoder_process(jpeg_handle, &enc_config, 
-                                                 evt.buffer, evt.len, 
+                                                 scaled_buffer, scaled_size,  // <--- KORRIGIERT!
                                                  jpeg_buffer, JPEG_BUFFER_SIZE, 
                                                  &jpeg_size);
 
@@ -272,7 +373,12 @@ void frame_processing_task(void *arg) {
             } else {
                 ESP_LOGE(TAG, "JPEG Encode failed: %s", esp_err_to_name(ret));
             }
+
+            //künstliche Verzögerung zum Testen 
+            //vTaskDelay(pdMS_TO_TICKS(100)); 
+
         }
+        ready_to_process = true;
     }
 }
 
@@ -313,8 +419,28 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(esp_ldo_acquire_channel(&ldo_mipi_phy_config, &ldo_mipi_phy));
 
-    //---------------Buffer Allocation------------------//
-    cam_ctx.buffer_size = CONFIG_EXAMPLE_MIPI_CSI_DISP_HRES * CONFIG_EXAMPLE_MIPI_DSI_DISP_VRES * EXAMPLE_RGB565_BITS_PER_PIXEL / 8;
+    // --------------------------------------------------------
+    // NEU: PPA Engine initialisieren
+    // --------------------------------------------------------
+    ppa_client_config_t ppa_client_config = {
+        .oper_type = PPA_OPERATION_SRM,  // Scale-Rotate-Mirror
+    };
+    ESP_ERROR_CHECK(ppa_register_client(&ppa_client_config, &ppa_srm_handle));
+    ESP_LOGI(TAG, "PPA Engine initialized");
+
+    // NEU: Buffer für skaliertes Bild allokieren
+    size_t scaled_buffer_size = SCALED_WIDTH * SCALED_HEIGHT * 2;  // RGB565
+    scaled_buffer = heap_caps_aligned_calloc(64, 1, scaled_buffer_size, MALLOC_CAP_SPIRAM);
+    if (!scaled_buffer) {
+        ESP_LOGE(TAG, "Failed to alloc scaled buffer");
+        return;
+    }
+    ESP_LOGI(TAG, "Scaled buffer allocated: %d bytes", scaled_buffer_size);
+    // --------------------------------------------------------
+    
+    
+    //---------------Frame Buffer Allocation------------------//
+    cam_ctx.buffer_size = EXAMPLE_MIPI_CSI_HRES * EXAMPLE_MIPI_CSI_VRES * EXAMPLE_RGB565_BITS_PER_PIXEL / 8;
     cam_ctx.current_buffer_idx = 0;
 
     for (int i = 0; i < NUM_FRAME_BUFFERS; i++) {
@@ -337,8 +463,8 @@ void app_main(void)
     //---------------CSI Init------------------//
     esp_cam_ctlr_csi_config_t csi_config = {
         .ctlr_id = 0,
-        .h_res = CONFIG_EXAMPLE_MIPI_CSI_DISP_HRES,
-        .v_res = CONFIG_EXAMPLE_MIPI_CSI_DISP_VRES,
+        .h_res = EXAMPLE_MIPI_CSI_HRES,
+        .v_res = EXAMPLE_MIPI_CSI_VRES,
         .lane_bit_rate_mbps = EXAMPLE_MIPI_CSI_LANE_BITRATE_MBPS,
         .input_data_color_type = CAM_CTLR_COLOR_RAW8,
         .output_data_color_type = CAM_CTLR_COLOR_RGB565,
@@ -375,8 +501,8 @@ void app_main(void)
         .output_data_color_type = ISP_COLOR_RGB565,
         .has_line_start_packet = false,
         .has_line_end_packet = false,
-        .h_res = CONFIG_EXAMPLE_MIPI_CSI_DISP_HRES,
-        .v_res = CONFIG_EXAMPLE_MIPI_CSI_DISP_VRES,
+        .h_res = EXAMPLE_MIPI_CSI_HRES,
+        .v_res = EXAMPLE_MIPI_CSI_VRES,
     };
     ESP_ERROR_CHECK(esp_isp_new_processor(&isp_config, &isp_proc));
     ESP_ERROR_CHECK(esp_isp_enable(isp_proc));

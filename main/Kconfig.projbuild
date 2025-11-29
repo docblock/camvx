@@ -12,7 +12,7 @@ menu "Example Configuration"
         help
             Example used LDO voltage, in mV
 
-    choice EXAMPLE_MIPI_CSI_DISP_HRES
+    choice EXAMPLE_MIPI_CSI_HRES_CHOICE
         bool "Set MIPI CSI horizontal resolution"
         default EXAMPLE_MIPI_CSI_HRES_1024
 
@@ -22,12 +22,12 @@ menu "Example Configuration"
             bool "1024"
     endchoice
 
-    config EXAMPLE_MIPI_CSI_DISP_HRES
+    config EXAMPLE_MIPI_CSI_HRES
         int
         default 800 if EXAMPLE_MIPI_CSI_HRES_800
         default 1024 if EXAMPLE_MIPI_CSI_HRES_1024
 
-    choice EXAMPLE_MIPI_CSI_DISP_VRES
+    choice EXAMPLE_MIPI_CSI_VRES_CHOICE
         bool "Set MIPI CSI vertical resolution"
         default EXAMPLE_MIPI_CSI_VRES_600
 
@@ -35,14 +35,17 @@ menu "Example Configuration"
             bool "600"
         config EXAMPLE_MIPI_CSI_VRES_640
             bool "640"
+        config EXAMPLE_MIPI_CSI_VRES_800
+            bool "800"
         config EXAMPLE_MIPI_CSI_VRES_1280
             bool "1280"
     endchoice
 
-    config EXAMPLE_MIPI_CSI_DISP_VRES
+    config EXAMPLE_MIPI_CSI_VRES
         int
         default 600 if EXAMPLE_MIPI_CSI_VRES_600
         default 640 if EXAMPLE_MIPI_CSI_VRES_640
+        default 800 if EXAMPLE_MIPI_CSI_VRES_800
         default 1280 if EXAMPLE_MIPI_CSI_VRES_1280
 
     config ESP_WIFI_SSID

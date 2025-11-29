@@ -19,6 +19,8 @@ extern "C" {
 #if CONFIG_EXAMPLE_MIPI_CSI_HRES_800
 #if CONFIG_EXAMPLE_MIPI_CSI_VRES_640
 #define EXAMPLE_CAM_FORMAT                     "MIPI_2lane_24Minput_RAW8_800x640_50fps"
+#elif CONFIG_EXAMPLE_MIPI_CSI_VRES_800
+#define EXAMPLE_CAM_FORMAT                     "MIPI_2lane_24Minput_RAW8_800x800_50fps"
 #else
 #define EXAMPLE_CAM_FORMAT                     "MIPI_2lane_24Minput_RAW8_800x1280_50fps"
 #endif
