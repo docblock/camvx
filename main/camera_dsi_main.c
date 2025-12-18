@@ -31,9 +31,14 @@
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
-#include "webserver.h"  // NEU
+#include "webserver.h" 
 
-#include "main_functions.h"
+// TFLite Stuff
+#include "image_classifier.h"
+#include "image_preprocessing.h"
+
+static uint8_t* classifier_input = NULL;   // 224x224x3 für TFLite
+// Ende TFLite Stuff
 
 static const char *TAG = "cam_csi";
 
@@ -181,8 +186,8 @@ void wifi_init_sta(void)
 #define NUM_FRAME_BUFFERS 2
 
 // Skaliertes Bild
-#define SCALED_WIDTH  400
-#define SCALED_HEIGHT 400
+#define SCALED_WIDTH  224
+#define SCALED_HEIGHT 224
 
 // JPEG Buffer Größe (Schätzung: 1/5 von RGB565 sollte reichen, aber sicherheitshalber großzügig)
 #define JPEG_BUFFER_SIZE (SCALED_WIDTH * SCALED_HEIGHT / 3)
@@ -270,12 +275,13 @@ static esp_err_t scale_image_with_ppa(const uint8_t *src, uint8_t *dst)
         },
         .out = {
             .buffer = dst,
-            .buffer_size = SCALED_WIDTH * SCALED_HEIGHT * 2,
+            // KORREKTUR: RGB888 braucht Faktor 3, nicht 2!
+            .buffer_size = SCALED_WIDTH * SCALED_HEIGHT * 3, 
             .pic_w = SCALED_WIDTH,
             .pic_h = SCALED_HEIGHT,
             .block_offset_x = 0,
             .block_offset_y = 0,
-            .srm_cm = PPA_SRM_COLOR_MODE_RGB565,
+            .srm_cm = PPA_SRM_COLOR_MODE_RGB888, // Hier fordern Sie RGB888 an
         },
         .rotation_angle = PPA_SRM_ROTATION_ANGLE_0,
         .scale_x = scale_x,
@@ -291,7 +297,8 @@ static esp_err_t scale_image_with_ppa(const uint8_t *src, uint8_t *dst)
     esp_err_t ret = ppa_do_scale_rotate_mirror(ppa_srm_handle, &srm_config);
     
     if (ret == ESP_OK) {
-        size_t dst_size = SCALED_WIDTH * SCALED_HEIGHT * 2;
+        // KORREKTUR: Auch hier Faktor 3 für Cache Sync
+        size_t dst_size = SCALED_WIDTH * SCALED_HEIGHT * 3;
         esp_cache_msync((void*)dst, dst_size, ESP_CACHE_MSYNC_FLAG_DIR_M2C);
     } else {
         ESP_LOGE(TAG, "PPA scaling failed: %s", esp_err_to_name(ret));
@@ -306,10 +313,15 @@ void frame_processing_task(void *arg) {
     
     // Buffer für das fertige JPEG Bild allokieren
     uint8_t *jpeg_buffer = heap_caps_aligned_calloc(64, 1, JPEG_BUFFER_SIZE, MALLOC_CAP_SPIRAM);
-    if (!jpeg_buffer) {
+    /*
+    size_t classifier_input_size = TM_INPUT_WIDTH * TM_INPUT_HEIGHT * TM_INPUT_CHANNELS;
+    classifier_input = heap_caps_malloc(classifier_input_size, MALLOC_CAP_SPIRAM);
+    if (!jpeg_buffer|| !classifier_input) {
         ESP_LOGE(TAG, "Failed to alloc JPEG buffer");
         vTaskDelete(NULL);
     }
+    */
+     
 
     while (1) {
         if (xQueueReceive(xFrameQueue, &evt, portMAX_DELAY) == pdTRUE) {
@@ -325,6 +337,17 @@ void frame_processing_task(void *arg) {
                 continue;
             }
             ESP_LOGI(TAG, "Image scaled from %dx%d to %dx%d", EXAMPLE_MIPI_CSI_HRES, EXAMPLE_MIPI_CSI_VRES, SCALED_WIDTH, SCALED_HEIGHT);
+
+            // 4. Klassifikation durchführen
+            classification_result_t result;
+            //if (classifier_run(classifier_input, &result)) {
+            if (classifier_run(scaled_buffer, &result)) {
+                ESP_LOGI(TAG, "Classification: %s (%.1f%%)", 
+                         result.class_name, result.confidence * 100.0f);
+                
+                // Optional: Ergebnis an Webserver senden
+                // webserver_update_classification(&result);
+            }
 
             
             // 1. Config für dieses Bild
@@ -342,7 +365,7 @@ void frame_processing_task(void *arg) {
 
             // 2. Bild-Parameter setzen
             jpeg_encode_cfg_t enc_config = {
-                .src_type = JPEG_ENCODE_IN_FORMAT_RGB565,
+                .src_type = JPEG_ENCODE_IN_FORMAT_RGB888,
                 .sub_sample = JPEG_DOWN_SAMPLING_YUV422,
                 .image_quality = 80,
                 .width = SCALED_WIDTH,
@@ -355,11 +378,11 @@ void frame_processing_task(void *arg) {
             // ÄNDERUNG: uint32_t statt size_t verwenden
             uint32_t jpeg_size = 0; 
             
-            // KORRIGIERT: scaled_buffer statt evt.buffer verwenden!
-            size_t scaled_size = SCALED_WIDTH * SCALED_HEIGHT * 2;  // RGB565 = 2 Bytes pro Pixel
+            // KORREKTUR: Faktor 3 für RGB888
+            size_t scaled_size = SCALED_WIDTH * SCALED_HEIGHT * 3;
             
             esp_err_t ret = jpeg_encoder_process(jpeg_handle, &enc_config, 
-                                                 scaled_buffer, scaled_size,  // <--- KORRIGIERT!
+                                                 scaled_buffer, scaled_size,
                                                  jpeg_buffer, JPEG_BUFFER_SIZE, 
                                                  &jpeg_size);
 
@@ -384,9 +407,6 @@ void frame_processing_task(void *arg) {
 
 void app_main(void)
 {
-    //Initialize Tensorflow Lite Micro
-    setuptflite();
-    
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -406,8 +426,6 @@ void app_main(void)
 
     // NEU: Webserver starten (nach WiFi-Verbindung!)
     start_webserver();
-
-    vTaskDelay(pdMS_TO_TICKS(10000));
 
     ret = ESP_FAIL;
 
@@ -429,7 +447,8 @@ void app_main(void)
     ESP_LOGI(TAG, "PPA Engine initialized");
 
     // NEU: Buffer für skaliertes Bild allokieren
-    size_t scaled_buffer_size = SCALED_WIDTH * SCALED_HEIGHT * 2;  // RGB565
+    // KORREKTUR: Faktor 3 für RGB888
+    size_t scaled_buffer_size = SCALED_WIDTH * SCALED_HEIGHT * 3; 
     scaled_buffer = heap_caps_aligned_calloc(64, 1, scaled_buffer_size, MALLOC_CAP_SPIRAM);
     if (!scaled_buffer) {
         ESP_LOGE(TAG, "Failed to alloc scaled buffer");
@@ -516,6 +535,14 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(jpeg_new_encoder_engine(&jpeg_eng_cfg, &jpeg_handle));
     // --------------------------------------------------------
+
+    // NEU: Klassifikator initialisieren (VOR dem Task-Start!)
+    if (!classifier_init()) {
+        ESP_LOGE(TAG, "Classifier init failed!");
+        // Optional: Weiter ohne Klassifikation
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(10000));
 
     xFrameQueue = xQueueCreate(5, sizeof(frame_event_t));
     xTaskCreatePinnedToCore(frame_processing_task, "frame_proc", 8192, NULL, 5, NULL, 1); // Stack erhöht!

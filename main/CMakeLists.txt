@@ -2,9 +2,8 @@ idf_component_register(
     SRCS
         camera_dsi_main.c
         webserver.c
-        main_functions.cc
-        constants.cc
-        output_handler.cc
+        image_classifier.cc
+        image_preprocessing.c
         model.cc
     INCLUDE_DIRS
         "."
